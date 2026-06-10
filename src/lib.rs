@@ -16,6 +16,7 @@ pub enum BitcoinError {
 impl CompactSize {
     pub fn new(value: u64) -> Self {
         // TODO: Construct a CompactSize from a u64 value
+        CompactSize { value }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -24,12 +25,63 @@ impl CompactSize {
         // [0xFDxxxx] => 0xFD + u16 (2 bytes)
         // [0xFExxxxxxxx] => 0xFE + u32 (4 bytes)
         // [0xFFxxxxxxxxxxxxxxxx] => 0xFF + u64 (8 bytes)
+        match self.value {
+            0..=0xFC => vec![self.value as u8],
+            0xFD..=0xFFFF => {
+                let mut v = vec![0xFD];
+                v.extend_from_slice(&(self.value as u16).to_le_bytes());
+                v
+            }
+            0xFE..=0xFFFFFFFF => {
+                // corrected: 0x10000..=0xFFFFFFFF
+                let mut v = vec![0xFE];
+                v.extend_from_slice(&(self.value as u32).to_le_bytes());
+                v
+            }
+            _ => {
+                let mut v = vec![0xFF];
+                v.extend_from_slice(&self.value.to_le_bytes());
+                v
+            }
+        }
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
         // TODO: Decode CompactSize, returning value and number of bytes consumed.
         // First check if bytes is empty.
         // Check that enough bytes are available based on prefix.
+        if bytes.is_empty() {
+            return Err(BitcoinError::InsufficientBytes);
+        }
+        match bytes[0] {
+            0..=0xFC => Ok((
+                CompactSize {
+                    value: bytes[0] as u64,
+                },
+                1,
+            )),
+            0xFD => {
+                if bytes.len() < 3 {
+                    return Err(BitcoinError::InsufficientBytes);
+                }
+                let val = u16::from_le_bytes([bytes[1], bytes[2]]) as u64;
+                Ok((CompactSize { value: val }, 3))
+            }
+            0xFE => {
+                if bytes.len() < 5 {
+                    return Err(BitcoinError::InsufficientBytes);
+                }
+                let val = u32::from_le_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]) as u64;
+                Ok((CompactSize { value: val }, 5))
+            }
+            _ => {
+                if bytes.len() < 9 {
+                    return Err(BitcoinError::InsufficientBytes);
+                }
+                let val = u64::from_le_bytes(bytes[1..9].try_into().unwrap());
+                Ok((CompactSize { value: val }, 9))
+            }
+        }
     }
 }
 
@@ -42,6 +94,7 @@ impl Serialize for Txid {
         S: serde::Serializer,
     {
         // TODO: Serialize as a hex-encoded string (32 bytes => 64 hex characters)
+        serializer.serialize_str(&hex::encode(self.0))
     }
 }
 
