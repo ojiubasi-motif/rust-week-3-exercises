@@ -105,6 +105,12 @@ impl<'de> Deserialize<'de> for Txid {
     {
         // TODO: Parse hex string into 32-byte array
         // Use `hex::decode`, validate length = 32
+        let s = String::deserialize(deserializer)?;
+        let bytes = hex::decode(&s).map_err(serde::de::Error::custom)?;
+        let arr: [u8; 32] = bytes.try_into().map_err(|_| {
+            serde::de::Error::custom("Txid must be 32 bytes")
+        })?;
+        Ok(Txid(arr))
     }
 }
 
@@ -117,16 +123,27 @@ pub struct OutPoint {
 impl OutPoint {
     pub fn new(txid: [u8; 32], vout: u32) -> Self {
         // TODO: Create an OutPoint from raw txid bytes and output index
+        OutPoint { txid: Txid(txid), vout }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         // TODO: Serialize as: txid (32 bytes) + vout (4 bytes, little-endian)
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&self.txid.0);
+        bytes.extend_from_slice(&self.vout.to_le_bytes());
+        bytes
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
         // TODO: Deserialize 36 bytes: txid[0..32], vout[32..36]
         // Return error if insufficient bytes
-    }
+        if bytes.len() < 36 {
+        return Err(BitcoinError::InsufficientBytes);
+        }
+            let txid: [u8; 32] = bytes[0..32].try_into().unwrap();
+            let vout = u32::from_le_bytes([bytes[32], bytes[33], bytes[34], bytes[35]]);
+            Ok((OutPoint::new(txid, vout), 36))
+        }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
