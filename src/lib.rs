@@ -259,7 +259,7 @@ impl BitcoinTransaction {
         // TODO: Read version, CompactSize for input count
         // Parse inputs one by one
         // Read final 4 bytes for lock_time
-         if bytes.len() < 4 {
+        if bytes.len() < 4 {
         return Err(BitcoinError::InsufficientBytes);
         }
         let version = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
@@ -277,7 +277,7 @@ impl BitcoinTransaction {
         }
         let lock_time = u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
         Ok((BitcoinTransaction::new(version, inputs, lock_time), offset + 4))
-        }
+    }
 }
 
 impl fmt::Display for BitcoinTransaction {
