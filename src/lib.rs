@@ -32,8 +32,7 @@ impl CompactSize {
                 v.extend_from_slice(&(self.value as u16).to_le_bytes());
                 v
             }
-            0xFE..=0xFFFFFFFF => {
-                // corrected: 0x10000..=0xFFFFFFFF
+            0x10000..=0xFFFFFFFF => {
                 let mut v = vec![0xFE];
                 v.extend_from_slice(&(self.value as u32).to_le_bytes());
                 v
@@ -298,26 +297,22 @@ impl fmt::Display for BitcoinTransaction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO: Format a user-friendly string showing version, inputs, lock_time
         // Display scriptSig length and bytes, and previous output info
-        write!(f, "Version: {}\n", self.version)?;
+        writeln!(f, "Version: {}", self.version)?;
         for (i, input) in self.inputs.iter().enumerate() {
-            write!(f, "Input {}:\n", i)?;
-            write!(
+            writeln!(f, "Input {}:", i)?;
+            writeln!(
                 f,
-                "  Previous Output Txid: {}\n",
+                "  Previous Output Txid: {}",
                 hex::encode(input.previous_output.txid.0)
             )?;
-            write!(
+            writeln!(f, "  Previous Output Vout: {}", input.previous_output.vout)?;
+            writeln!(f, "  ScriptSig Length: {}", input.script_sig.bytes.len())?;
+            writeln!(
                 f,
-                "  Previous Output Vout: {}\n",
-                input.previous_output.vout
-            )?;
-            write!(f, "  ScriptSig Length: {}\n", input.script_sig.bytes.len())?;
-            write!(
-                f,
-                "  ScriptSig Bytes: {}\n",
+                "  ScriptSig Bytes: {}",
                 hex::encode(&input.script_sig.bytes)
             )?;
-            write!(f, "  Sequence: {}\n", input.sequence)?;
+            writeln!(f, "  Sequence: {}", input.sequence)?;
         }
         write!(f, "Lock Time: {}", self.lock_time)
     }
